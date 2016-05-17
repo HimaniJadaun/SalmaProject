@@ -1,33 +1,176 @@
-/**
- *  Copyright 2016 SuperHighway Labs (P) Limited . All Rights Reserved.
- *  SUPERHIGHWAY LABS PROPRIETARY/CONFIDENTIAL. Use is subject to license terms.
- */
+
 package executor;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-/**
- * @version 1.0, May 16, 2016
- * @author himani
- */
+
 public class ScheduleTask {
 
     public static void main(String[] args) {
-        Processor p1 = new Processor("P1", 0, 0);
-        Processor p2 = new Processor("P2", 0, 0);
-        List<Processor> processorList = new ArrayList<>();
-        processorList.add(p1);
-        processorList.add(p2);
-        List<Task> taskList = new ArrayList<>();
-        Task task1 = new Task();
-        Task task2 = new Task();
-        Task task3 = new Task();
-        Task task4 = new Task();
+        List<Processor> processorList = getProcessorList();
+        List<InputTask> taskList = getTaskList();
+        scheduleTask(processorList, taskList);
+        //Printing task scheduling
+        for (Processor processor : processorList) {
+            for (ProcessorTask pTask : processor.getTaskList()) {
+                System.out.println("Processor " + processor.getName() + ":  Task " + pTask.toString());
+            }
+        }
+
+    }
+
+    //Scheduling task
+    public static void scheduleTask(List<Processor> processorList, List<InputTask> taskList) {
+        int count = 0;
+        for (InputTask task : taskList) {
+            boolean primaryProcessorAssigned = false;
+            boolean altProcessorAssigned = false;
+            PrimaryTask pTask = task.getPrimaryTask();
+            AlternativeTask aTask = task.getAlternativeTask();
+            //Assigning First Primary Task
+            if (count == 0) {
+                Processor p1 = processorList.get(0);
+                p1.getTaskList().add(new ProcessorTask(pTask.getReadyTime(), pTask.getReadyTime() + pTask.getExecutionTime(), TaskType.PRIMARY, pTask.getName()));
+
+                //Assigning First Alternative Task
+                Processor p2 = processorList.get(1);
+                p2.getTaskList().add(new ProcessorTask(pTask.getDeadlineTime() - aTask.getExecutionTime(), pTask.getDeadlineTime(), TaskType.ALTERNATIVE, aTask.getName()));
+
+            } else {
+                //Primary task allocation for task other than first
+                String assignedProcessorName = null;
+                for (Processor processor : processorList) {
+                    Integer firstFitIndexForPrimary = firstFitTimeIndexForPrimary(processor, task);
+                    if (firstFitIndexForPrimary != -1) {
+                        ProcessorTask newTask = null;
+                        if (firstFitIndexForPrimary == 0) {
+                            newTask = new ProcessorTask(pTask.getReadyTime(), pTask.getReadyTime() + pTask.getExecutionTime(), TaskType.PRIMARY, pTask.getName());
+                        } else {
+                            ProcessorTask currTask = processor.getTaskList().get(firstFitIndexForPrimary - 1);
+                            newTask = new ProcessorTask(currTask.getEndTime(), currTask.getEndTime() + pTask.getExecutionTime(), TaskType.PRIMARY, pTask.getName());
+                        }
+                        processor.getTaskList().add(firstFitIndexForPrimary, newTask);
+                        primaryProcessorAssigned = true;
+                        assignedProcessorName = processor.getName();
+                        break;
+                    } else {
+                        continue;
+                    }
+                }
+                //Spawning a new processor
+                if (!primaryProcessorAssigned) {
+                    String processorName = "P" + (processorList.size() + 1);
+                    Processor newProcessor = new Processor(processorName);
+                    processorList.add(newProcessor);
+                    assignedProcessorName = newProcessor.getName();
+                    newProcessor.getTaskList().add(new ProcessorTask(pTask.getReadyTime(), pTask.getReadyTime() + pTask.getExecutionTime(), TaskType.PRIMARY, pTask.getName()));
+                }
+                //Secondary task allocation other tahn first
+                for (Processor processor : processorList) {
+                    if (assignedProcessorName.equals(processor.getName())) {
+                        continue;
+                    }
+                    Integer firstFitIndexForAlt = firstFitTimeIndexForAlternative(processor, task);
+                    if (firstFitIndexForAlt != -1) {
+                        ProcessorTask newTask = null;
+                        if (firstFitIndexForAlt == 0) {
+                            newTask = new ProcessorTask(pTask.getReadyTime(), pTask.getReadyTime() + aTask.getExecutionTime(), TaskType.ALTERNATIVE, aTask.getName());
+                        } else {
+                            ProcessorTask currTask = processor.getTaskList().get(firstFitIndexForAlt - 1);
+                            newTask = new ProcessorTask(currTask.getEndTime(), currTask.getEndTime() + aTask.getExecutionTime(), TaskType.ALTERNATIVE, aTask.getName());
+                        }
+                        processor.getTaskList().add(firstFitIndexForAlt, newTask);
+                        altProcessorAssigned = true;
+                        break;
+                    } else {
+                        continue;
+                    }
+                }
+                //Spawning a new processor
+                if (!altProcessorAssigned) {
+                    String processorName = "P" + (processorList.size() + 1);
+                    Processor newProcessor = new Processor(processorName);
+                    processorList.add(newProcessor);
+                    newProcessor.getTaskList().add(new ProcessorTask(pTask.getReadyTime(), pTask.getReadyTime() + aTask.getExecutionTime(), TaskType.ALTERNATIVE, aTask.getName()));
+                }
+            }
+            count++;
+        }
+    }
+
+    //Getting index to allocate primary task
+    private static Integer firstFitTimeIndexForPrimary(Processor p, InputTask task) {
+        PrimaryTask primaryTask = task.getPrimaryTask();
+        if (null != p && !p.getTaskList().isEmpty()) {
+            ProcessorTask prevTask = null;
+            int index = 0;
+            if (p.getTaskList().size() == 1) {
+                ProcessorTask pTask = p.getTaskList().get(0);
+                if (pTask.getStartTime() >= (primaryTask.getReadyTime() + primaryTask.getExecutionTime())) {
+                    return 0;
+                }
+                if (pTask.getEndTime() <= (primaryTask.getDeadlineTime() - primaryTask.getExecutionTime())) {
+                    return 1;
+                }
+            }
+
+            for (ProcessorTask pTask : p.getTaskList()) {
+                if (index == 0) {
+                    prevTask = pTask;
+                } else {
+                    ProcessorTask currTask = pTask;
+                    if ((primaryTask.getDeadlineTime() - primaryTask.getExecutionTime()) >= prevTask.getEndTime() && primaryTask.getDeadlineTime() <= currTask.getStartTime()) {
+                        return index;
+                    }
+                    prevTask = currTask;
+                }
+                index++;
+            }
+        }
+        return -1;
+    }
+
+    //Getting index to allocate secondary task
+    private static Integer firstFitTimeIndexForAlternative(Processor p, InputTask task) {
+        PrimaryTask primaryTask = task.getPrimaryTask();
+        AlternativeTask altTask = task.getAlternativeTask();
+        if (null != p && !p.getTaskList().isEmpty()) {
+            ProcessorTask prevTask = null;
+            int index = 0;
+            if (p.getTaskList().size() == 1) {
+                ProcessorTask pTask = p.getTaskList().get(0);
+                if (pTask.getStartTime() >= (primaryTask.getReadyTime() + altTask.getExecutionTime())) {
+                    return 0;
+                }
+                if (pTask.getEndTime() <= (primaryTask.getDeadlineTime() - altTask.getExecutionTime())) {
+                    return 1;
+                }
+            }
+
+            for (ProcessorTask pTask : p.getTaskList()) {
+                if (index == 0) {
+                    prevTask = pTask;
+                } else {
+                    ProcessorTask currTask = pTask;
+                    if ((primaryTask.getDeadlineTime() - altTask.getExecutionTime()) >= prevTask.getEndTime() && primaryTask.getDeadlineTime() <= currTask.getStartTime()) {
+                        return index;
+                    }
+                    prevTask = currTask;
+                }
+                index++;
+            }
+        }
+        return -1;
+    }
+
+    private static List<InputTask> getTaskList() {
+        List<InputTask> taskList = new ArrayList<>();
+        InputTask task1 = new InputTask();
+        InputTask task2 = new InputTask();
+        InputTask task3 = new InputTask();
+        InputTask task4 = new InputTask();
+
         PrimaryTask primary1 = new PrimaryTask(1, 2, 3, "primary1");
         AlternativeTask alternative1 = new AlternativeTask(1, "alternative1");
         PrimaryTask primary2 = new PrimaryTask(2, 2, 5, "primary2");
@@ -36,6 +179,7 @@ public class ScheduleTask {
         AlternativeTask alternative3 = new AlternativeTask(1, "alternative3");
         PrimaryTask primary4 = new PrimaryTask(4, 2, 8, "primary4");
         AlternativeTask alternative4 = new AlternativeTask(1, "alternative4");
+
         task1.setAlternativeTask(alternative1);
         task1.setPrimaryTask(primary1);
         task2.setAlternativeTask(alternative2);
@@ -44,64 +188,21 @@ public class ScheduleTask {
         task3.setPrimaryTask(primary3);
         task4.setAlternativeTask(alternative4);
         task4.setPrimaryTask(primary4);
+
         taskList.add(task1);
         taskList.add(task2);
         taskList.add(task3);
         taskList.add(task4);
-
+        return taskList;
     }
 
-    public static void scheduleTask(List<Processor> processorList, List<Task> taskList) {
-        Map<String, String> processorToTaskMap = new HashMap<>();
-        int count = 0;
-        for (Task task : taskList) {
-            //First Task
-            PrimaryTask pTask = task.getPrimaryTask();
-            AlternativeTask aTask = task.getAlternativeTask();
-            if (count == 0) {
-                Processor p1 = processorList.get(0);
-                p1.setStartTime(pTask.getReadyTime());
-                p1.setEndTime(pTask.getReadyTime() + pTask.getExecutionTime());
-                processorToTaskMap.put(pTask.getName(), p1.getName() + "Start-->" + p1.getStartTime() + "End-->" + p1.getEndTime());
-               
-                Processor p2 = processorList.get(1);
-                p2.setStartTime(pTask.getDeadlineTime() - aTask.getExecutionTime());
-                p2.setEndTime(pTask.getDeadlineTime());
-                processorToTaskMap.put(aTask.getName(), p2.getName() + "Start-->" + p2.getStartTime() + "End-->" + p2.getEndTime());
-            }
-
-            else {
-                for (Processor processor : processorList) {
-                    if ((pTask.getDeadlineTime() - pTask.getExecutionTime()) >= (processor.getEndTime())) {
-                        processorToTaskMap.put(aTask.getName(), p2.getName() + "Start-->" + p2.getStartTime() + "End-->" + p2.getEndTime());
-                    }
-                }
-            }
-            count++;
-        }
+    private static List<Processor> getProcessorList() {
+        Processor p1 = new Processor("P1");
+        Processor p2 = new Processor("P2");
+        List<Processor> processorList = new ArrayList<>();
+        processorList.add(p1);
+        processorList.add(p2);
+        return processorList;
     }
 
-    public static void schedulePrimaryTask(List<Processor> processorList, PrimaryTask primaryTask, Map<String, String> processorToTaskMap) {
-        for (Processor processor : processorList) {
-            processorToTaskMap.put(processor.getName() + "Satrt-->" + primaryTask.getReadyTime() + "End-->" + primaryTask.getExecutionTime(), primaryTask.getName());
-        }
-    }
-
-    public static void scheduleAletrnativeTask(List<Processor> processorList, AlternativeTask alternativeTask, Map<String, String> processorToTaskMap) {
-        for (Processor processor : processorList) {
-            processorToTaskMap.put(processor.getName() + "Execution Time-->" + alternativeTask.getExecutionTime(), alternativeTask.getName());
-        }
-    }
 }
-
-
-
-
-
-
-
-
-
-
-
-

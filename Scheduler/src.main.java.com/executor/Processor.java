@@ -1,42 +1,32 @@
-/**
- *  Copyright 2016 SuperHighway Labs (P) Limited . All Rights Reserved.
- *  SUPERHIGHWAY LABS PROPRIETARY/CONFIDENTIAL. Use is subject to license terms.
- */  
+
 package executor;
 
-/**
- *  
- *  @version     1.0, May 16, 2016
- *  @author himani
- */
+import java.util.ArrayList;
+import java.util.List;
+
+
 public class Processor {
-    private String name;
-    private Integer startTime;
-    private Integer endTime;
-    
-    public Processor(String name, Integer startTime, Integer endTime) {
-        super();
-        this.name = name;
-        this.startTime = startTime;
-        this.endTime = endTime;
+    private String      name;
+    List<ProcessorTask> taskList = new ArrayList<>();
+
+    public Processor(String name) {
+       this.name=name;
     }
+
     public String getName() {
         return name;
     }
+
     public void setName(String name) {
         this.name = name;
     }
-    public Integer getStartTime() {
-        return startTime;
+
+    public List<ProcessorTask> getTaskList() {
+        return taskList;
     }
-    public void setStartTime(Integer startTime) {
-        this.startTime = startTime;
-    }
-    public Integer getEndTime() {
-        return endTime;
-    }
-    public void setEndTime(Integer endTime) {
-        this.endTime = endTime;
+
+    public void setTaskList(List<ProcessorTask> taskList) {
+        this.taskList = taskList;
     }
 
 }
