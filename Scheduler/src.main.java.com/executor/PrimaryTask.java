@@ -37,5 +37,9 @@ public class PrimaryTask{
     public void setName(String name) {
         this.name = name;
     }
+    @Override
+    public String toString() {
+        return "PrimaryTask [name=" + name + ", readyTime=" + readyTime + ", executionTime=" + executionTime + ", deadlineTime=" + deadlineTime + "]";
+    }
 
 }

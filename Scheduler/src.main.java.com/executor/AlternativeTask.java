@@ -26,4 +26,9 @@ public class AlternativeTask {
         this.name = name;
     }
 
+    @Override
+    public String toString() {
+        return "AlternativeTask [executionTime=" + executionTime + ", name=" + name + "]";
+    }
+
 }

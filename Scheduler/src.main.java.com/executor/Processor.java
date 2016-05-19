@@ -29,4 +29,9 @@ public class Processor {
         this.taskList = taskList;
     }
 
+    @Override
+    public String toString() {
+        return "Processor [name=" + name + ", taskList=" + taskList + "]";
+    }
+
 }
